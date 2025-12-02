@@ -1,0 +1,48 @@
+[
+  {
+    "entry_date": "2025-12-02",
+    "product_name": "E302",
+    "lot_no": "1234567",
+    "details": {
+      "test": 0.55
+    },
+    "registered_at": "2025-12-02T08:28:35.726819"
+  },
+  {
+    "entry_date": "2025-12-02",
+    "product_name": "E302",
+    "lot_no": "12345678",
+    "details": {
+      "test": 1.03
+    },
+    "registered_at": "2025-12-02T08:29:47.102455"
+  },
+  {
+    "entry_date": "2025-12-02",
+    "product_name": "E302",
+    "lot_no": "12345678",
+    "details": {
+      "test": 0.0
+    },
+    "registered_at": "2025-12-02T09:29:42.275471"
+  },
+  {
+    "entry_date": "2025-12-02",
+    "product_name": "E302",
+    "lot_no": "12345678",
+    "details": {
+      "test": "hello"
+    },
+    "registered_at": "2025-12-02T09:30:36.328383"
+  },
+  {
+    "entry_date": "2025-12-02",
+    "product_name": "E302",
+    "lot_no": "12345678",
+    "details": {
+      "test": "",
+      "date": "2025-12-02"
+    },
+    "registered_at": "2025-12-02T09:31:20.956255"
+  }
+]
