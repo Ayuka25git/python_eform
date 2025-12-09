@@ -48,7 +48,7 @@ class FieldDetailDialog(QDialog):
         basic_layout.addRow("項目名 *:", self.label_input)
 
         self.type_combo = QComboBox()
-        self.type_combo.addItems(["文字列", "パスワード", "数値", "日付", "日付時刻"])
+        self.type_combo.addItems(["文字列", "パスワード", "数値", "日付", "日付時刻", "時刻", "表形式"])
         current_type = self.field_data.get("data_type", "文字列")
         index = self.type_combo.findText(current_type)
         if index >= 0:
@@ -143,6 +143,23 @@ class FieldDetailDialog(QDialog):
         other_group.setLayout(other_layout)
         form_layout.addRow(other_group)
 
+        # 表形式設定
+        table_group = QGroupBox("表形式設定")
+        table_layout = QFormLayout()
+        self.table_columns_input = QLineEdit(",".join(self.field_data.get("table_columns", [])))
+        self.table_columns_input.setPlaceholderText("例: 項目A, 項目B, 項目C")
+        table_layout.addRow("カラム名（カンマ区切り）:", self.table_columns_input)
+
+        self.table_rows_spin = QSpinBox()
+        self.table_rows_spin.setMinimum(1)
+        self.table_rows_spin.setMaximum(200)
+        self.table_rows_spin.setValue(self.field_data.get("table_rows", 20))
+        table_layout.addRow("表示行数:", self.table_rows_spin)
+
+        table_group.setLayout(table_layout)
+        self.table_group = table_group
+        form_layout.addRow(table_group)
+
         scroll_widget.setLayout(form_layout)
         scroll.setWidget(scroll_widget)
         layout.addWidget(scroll)
@@ -164,6 +181,8 @@ class FieldDetailDialog(QDialog):
         self.validation_group.setVisible(data_type == "数値")
         # 文字列/パスワード型の場合のみ文字列入力規則を表示
         self.text_validation_group.setVisible(data_type in ["文字列", "パスワード"])
+        # 表形式のみ表設定を表示
+        self.table_group.setVisible(data_type == "表形式")
 
     def get_field_data(self):
         """入力された項目データを取得"""
@@ -188,6 +207,11 @@ class FieldDetailDialog(QDialog):
         if self.type_combo.currentText() in ["文字列", "パスワード"]:
             data["regex_pattern"] = self.regex_input.text().strip()
             data["max_length"] = self.max_length_spin.value()
+
+        if self.type_combo.currentText() == "表形式":
+            columns = [c.strip() for c in self.table_columns_input.text().split(",") if c.strip()]
+            data["table_columns"] = columns
+            data["table_rows"] = self.table_rows_spin.value()
 
         return data
 

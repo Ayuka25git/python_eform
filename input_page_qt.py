@@ -12,10 +12,9 @@ from datetime import datetime
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QGroupBox, QScrollArea, QDateEdit, QMessageBox,
-    QTableWidget, QTableWidgetItem, QDoubleSpinBox, QHeaderView,
-    QDateTimeEdit, QGridLayout
+    QDoubleSpinBox, QDateTimeEdit, QGridLayout, QTimeEdit, QTableWidget, QTableWidgetItem
 )
-from PySide6.QtCore import Qt, QDate, QDateTime
+from PySide6.QtCore import Qt, QDate, QDateTime, QTime, Signal
 
 CONFIG_FILE = "form_config.json"
 DATA_FILE = "input_data.json"
@@ -23,6 +22,9 @@ DATA_FILE = "input_data.json"
 
 class InputPage(QWidget):
     """入力画面ウィジェット"""
+
+    # データ登録完了通知
+    data_saved = Signal()
 
     def __init__(self):
         super().__init__()
@@ -97,32 +99,7 @@ class InputPage(QWidget):
 
         layout.addLayout(button_layout)
 
-        # 登録済みデータ表示エリア
-        data_group = QGroupBox("登録済みデータ")
-        data_layout = QVBoxLayout()
-
-        self.data_table = QTableWidget()
-        self.data_table.setColumnCount(5)
-        self.data_table.setHorizontalHeaderLabels([
-            "日付", "品種", "ロット番号", "登録日時", "詳細"
-        ])
-
-        # テーブルのヘッダーを調整
-        header = self.data_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.Stretch)
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
-
-        data_layout.addWidget(self.data_table)
-        data_group.setLayout(data_layout)
-        layout.addWidget(data_group)
-
         self.setLayout(layout)
-
-        # 登録済みデータを読み込み
-        self.load_registered_data()
 
     def reload_config(self):
         """設定を再読み込みして詳細入力フォームを再生成"""
@@ -228,6 +205,21 @@ class InputPage(QWidget):
             widget.setCalendarPopup(True)
             widget.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
 
+        elif data_type == "時刻":
+            widget = QTimeEdit()
+            widget.setTime(QTime.currentTime())
+            widget.setDisplayFormat("HH:mm")
+
+        elif data_type == "表形式":
+            columns = [c.strip() for c in field.get("table_columns", []) if c.strip()]
+            row_count = field.get("table_rows", 20)
+            widget = QTableWidget(row_count, len(columns) or 1)
+            headers = columns or ["列1"]
+            widget.setHorizontalHeaderLabels(headers)
+            widget.horizontalHeader().setStretchLastSection(True)
+            widget.verticalHeader().setVisible(False)
+            widget.setAlternatingRowColors(True)
+
         elif data_type == "パスワード":
             widget = QLineEdit()
             widget.setEchoMode(QLineEdit.Password)
@@ -299,6 +291,28 @@ class InputPage(QWidget):
             elif data_type == "日付時刻":
                 value = widget.dateTime().toString("yyyy-MM-dd HH:mm:ss")
 
+            elif data_type == "時刻":
+                value = widget.time().toString("HH:mm")
+
+            elif data_type == "表形式":
+                value = []
+                headers = [widget.horizontalHeaderItem(i).text() for i in range(widget.columnCount())]
+                for row in range(widget.rowCount()):
+                    row_values = {}
+                    has_value = False
+                    for col, header in enumerate(headers):
+                        cell_item = widget.item(row, col)
+                        cell_text = cell_item.text().strip() if cell_item else ""
+                        if cell_text:
+                            has_value = True
+                        row_values[header] = cell_text
+                    if has_value:
+                        value.append(row_values)
+                if is_required and not value:
+                    errors.append(f"「{label_name}」は最低1行入力してください。")
+                detail_values[label_name] = value
+                continue
+
             else:  # 文字列またはパスワード
                 value = widget.text().strip()
 
@@ -351,8 +365,8 @@ class InputPage(QWidget):
         # 入力フィールドをクリア
         self.clear_inputs()
 
-        # 登録済みデータを再読み込み
-        self.load_registered_data()
+        # 登録完了を通知（データ閲覧タブ更新用）
+        self.data_saved.emit()
 
     def clear_inputs(self):
         """入力フィールドをクリア"""
@@ -366,60 +380,9 @@ class InputPage(QWidget):
                 widget.setDate(QDate.currentDate())
             elif data_type == "日付時刻":
                 widget.setDateTime(QDateTime.currentDateTime())
+            elif data_type == "時刻":
+                widget.setTime(QTime.currentTime())
+            elif data_type == "表形式":
+                widget.clearContents()
             else:  # 文字列またはパスワード
                 widget.clear()
-
-    def load_registered_data(self):
-        """登録済みデータを読み込んでテーブルに表示"""
-        self.data_table.setRowCount(0)
-
-        if not os.path.exists(DATA_FILE):
-            return
-
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            data_list = json.load(f)
-
-        # 新しい順に表示
-        for idx, data in enumerate(reversed(data_list)):
-            self.data_table.insertRow(idx)
-
-            # 日付
-            self.data_table.setItem(idx, 0, QTableWidgetItem(data.get("entry_date", "")))
-
-            # 品種
-            self.data_table.setItem(idx, 1, QTableWidgetItem(data.get("product_name", "")))
-
-            # ロット番号
-            self.data_table.setItem(idx, 2, QTableWidgetItem(data.get("lot_no", "")))
-
-            # 登録日時
-            registered_at = data.get("registered_at", "")
-            if registered_at:
-                # ISO形式を読みやすく変換
-                try:
-                    dt = datetime.fromisoformat(registered_at)
-                    registered_at = dt.strftime("%Y-%m-%d %H:%M:%S")
-                except Exception:
-                    pass
-            self.data_table.setItem(idx, 3, QTableWidgetItem(registered_at))
-
-            # 詳細データをボタンで表示
-            details_btn = QPushButton("詳細")
-            details_btn.clicked.connect(lambda checked, d=data: self.show_details(d))
-            self.data_table.setCellWidget(idx, 4, details_btn)
-
-    def show_details(self, data):
-        """詳細データをメッセージボックスで表示"""
-        details = data.get("details", {})
-
-        message = "【基本情報】\n"
-        message += f"日付: {data.get('entry_date', '')}\n"
-        message += f"品種: {data.get('product_name', '')}\n"
-        message += f"ロット番号: {data.get('lot_no', '')}\n"
-        message += f"登録日時: {data.get('registered_at', '')}\n\n"
-        message += "【詳細データ】\n"
-
-        for key, value in details.items():
-            message += f"{key}: {value}\n"
-
-        QMessageBox.information(self, "詳細データ", message)
