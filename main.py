@@ -10,7 +10,9 @@ import sys
 from PySide6.QtWidgets import QApplication, QMainWindow, QTabWidget
 from config_page_qt import ConfigPage
 from input_page_qt import InputPage
+from data_view_page import DataViewPage
 from db_config_page import DBConfigPage
+from account_settings_page import AccountSettingsPage
 
 
 class MainWindow(QMainWindow):
@@ -33,6 +35,10 @@ class MainWindow(QMainWindow):
         self.input_page = InputPage()
         self.tabs.addTab(self.input_page, "📝 データ入力")
 
+        # データ閲覧タブ
+        self.data_view_page = DataViewPage()
+        self.tabs.addTab(self.data_view_page, "📊 登録データ")
+
         # 設定画面タブ
         self.config_page = ConfigPage()
         self.tabs.addTab(self.config_page, "⚙️ フォーム設定")
@@ -41,8 +47,14 @@ class MainWindow(QMainWindow):
         self.db_config_page = DBConfigPage()
         self.tabs.addTab(self.db_config_page, "🔌 DB接続設定")
 
+        # アカウント設定タブ
+        self.account_settings_page = AccountSettingsPage()
+        self.tabs.addTab(self.account_settings_page, "👤 アカウント設定")
+
         # 設定画面で保存されたときに入力画面を更新
         self.config_page.config_saved.connect(self.input_page.reload_config)
+        # 入力画面でデータ登録が完了したらデータ閲覧タブを更新
+        self.input_page.data_saved.connect(self.data_view_page.load_registered_data)
 
 
 def main():
